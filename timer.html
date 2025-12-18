@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Configurable Count-Up Timer</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --text:#e8eef7; --muted:#9fb0c7; --ring:rgba(255,255,255,.12);
+      --btn:#2a364a; --btnText:#fff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; display:grid; place-items:center;
+      background: radial-gradient(1200px 600px at 50% 20%, #142033 0%, var(--bg) 55%);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+    .wrap{
+      width:min(760px,92vw);
+      padding:28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+      border:1px solid var(--ring);
+      border-radius:24px;
+      box-shadow:0 20px 60px rgba(0,0,0,.45);
+      text-align:center;
+    }
+    .label{
+      font-size:14px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;
+    }
+    .time{
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(56px, 9vw, 96px);
+      font-weight:800;
+      margin: 8px 0 14px;
+      user-select:none;
+    }
+    .hint{color:var(--muted); margin:0 0 18px; font-size:14px}
+    .marks{
+      display:flex; justify-content:center; gap:10px; flex-wrap:wrap;
+      margin: 10px 0 20px; color:var(--muted); font-size:13px;
+    }
+    .pill{
+      border:1px solid var(--ring);
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,0.18);
+      user-select:none;
+    }
+    .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+    .actions button{width:auto;padding:14px 28px;font-size:clamp(14px,2.5vw,18px)}
+    button{
+      border:none; cursor:pointer; font-weight:700; letter-spacing:.02em;
+      border-radius:14px; padding:16px 20px;
+      width:min(520px,100%);
+      font-size: clamp(16px, 3vw, 24px);
+      background:var(--btn); color:var(--btnText);
+      box-shadow:0 8px 24px rgba(0,0,0,.3);
+      transition: transform .06s ease, background .15s ease;
+    }
+    button:hover{background:#3a4a62}
+    button:active{transform:translateY(2px) scale(.99)}
+    button:focus-visible{outline:3px solid rgba(255,255,255,.35); outline-offset:3px}
+
+    /* Flash overlay */
+    .flash{position:fixed; inset:0; pointer-events:none; opacity:0}
+    .flash.on{animation: flash var(--flashDur, .7s) ease-in-out 0s var(--flashRepeats, 3)}
+    @keyframes flash{
+      0%{opacity:0} 25%{opacity:var(--flashOpacity, .35)} 50%{opacity:.05} 75%{opacity:var(--flashOpacity, .35)} 100%{opacity:0}
+    }
+
+    /* Popup overlay */
+    .popup{position:fixed; inset:0; display:grid; place-items:center; pointer-events:none; opacity:0}
+    .popup.on{animation: popupFade var(--popupDur, 1.2s) ease-in-out 0s 1}
+    @keyframes popupFade{
+      0%{opacity:0; transform:scale(.98)} 15%{opacity:1; transform:scale(1)} 85%{opacity:1; transform:scale(1)} 100%{opacity:0; transform:scale(.985)}
+    }
+    .popupCard{
+      width:min(900px, 92vw); padding: 26px 22px; border-radius: 24px;
+      border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.45);
+      backdrop-filter: blur(10px); box-shadow: 0 22px 70px rgba(0,0,0,.55); text-align:center;
+    }
+    .popupText{
+      font-size: clamp(34px, 7vw, 84px); font-weight: 950; line-height: 1.05;
+      letter-spacing: .01em; text-shadow: 0 8px 28px rgba(0,0,0,.55);
+      margin: 0; user-select:none; white-space: pre-wrap;
+    }
+
+    /* Config Panel */
+    .configPanel{
+      margin-top:24px; padding:18px; border-radius:16px;
+      background:rgba(0,0,0,.25); border:1px solid var(--ring);
+      text-align:left; display:none;
+    }
+    .configPanel.open{display:block}
+    .configPanel h3{margin:0 0 14px;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+    .intervalRow{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      padding:10px 0; border-bottom:1px solid var(--ring);
+    }
+    .intervalRow:last-of-type{border-bottom:none}
+    .intervalRow input[type="text"]{
+      width:70px; padding:8px; border-radius:8px; border:1px solid var(--ring);
+      background:rgba(255,255,255,.08); color:var(--text); font-size:14px;
+    }
+    .intervalRow input[type="color"]{
+      width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;
+    }
+    .intervalRow button{
+      width:auto; padding:8px 14px; font-size:13px; border-radius:8px;
+    }
+    .intervalRow .remove{background:#5a3030}
+    .intervalRow .remove:hover{background:#7a4040}
+    .addInterval{margin-top:12px;width:100%}
+    .applyBtn{margin-top:16px;background:#2a5a3a}
+    .applyBtn:hover{background:#3a7a4a}
+  </style>
+</head>
+<body>
+  <div class="flash" id="flash"></div>
+  <div class="popup" id="popup" aria-hidden="true">
+    <div class="popupCard" id="popupCard"><p class="popupText" id="popupText"></p></div>
+  </div>
+
+  <main class="wrap" role="application" aria-label="Configurable count up timer">
+    <div class="label">Count-up timer</div>
+    <div class="time" id="time" aria-live="polite">0:00.0</div>
+    <p class="hint" id="hint">Configured intervals will flash when reached.</p>
+    <div class="marks" id="marks"></div>
+
+    <div class="actions">
+      <button id="reset" type="button">RESET</button>
+      <button id="toggleConfig" type="button">⚙ Settings</button>
+    </div>
+
+    <!-- Simple Config Panel -->
+    <div class="configPanel" id="configPanel">
+      <h3>Intervals</h3>
+      <div id="intervalList"></div>
+      <button class="addInterval" id="addInterval" type="button">+ Add Interval</button>
+      <button class="applyBtn" id="applyConfig" type="button">Apply & Reset</button>
+    </div>
+  </main>
+
+  <script>
+    // Default intervals (original settings)
+    const DEFAULT_INTERVALS = [
+      { label: "0:30", timeMs: 30000, color: "#ff3232" },
+      { label: "1:00", timeMs: 60000, color: "#00ff78" },
+      { label: "1:45", timeMs: 105000, color: "#ffe600" }
+    ];
+
+    // State
+    let intervals = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
+    let fired = [];
+    let startMs = performance.now();
+    let popupTimeout = null;
+
+    // Elements
+    const timeEl = document.getElementById("time");
+    const hintEl = document.getElementById("hint");
+    const marksEl = document.getElementById("marks");
+    const resetBtn = document.getElementById("reset");
+    const flashEl = document.getElementById("flash");
+    const popupEl = document.getElementById("popup");
+    const popupCardEl = document.getElementById("popupCard");
+    const popupTextEl = document.getElementById("popupText");
+    const toggleConfigBtn = document.getElementById("toggleConfig");
+    const configPanel = document.getElementById("configPanel");
+    const intervalList = document.getElementById("intervalList");
+    const addIntervalBtn = document.getElementById("addInterval");
+    const applyConfigBtn = document.getElementById("applyConfig");
+
+    // Helpers
+    function formatTime(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      const t = Math.floor(ms / 100) % 10;
+      return `${m}:${String(sec).padStart(2, "0")}.${t}`;
+    }
+
+    function parseTime(str) {
+      str = str.trim();
+      if (str.includes(":")) {
+        const [min, sec] = str.split(":");
+        return (parseInt(min, 10) * 60 + parseInt(sec, 10)) * 1000;
+      }
+      return parseInt(str, 10) * 1000;
+    }
+
+    function msToLabel(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${String(sec).padStart(2, "0")}`;
+    }
+
+    function restartAnim(el, cls) {
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+    }
+
+    function runFlash(it) {
+      flashEl.style.background = it.color || "#ffffff";
+      flashEl.style.setProperty("--flashRepeats", "3");
+      flashEl.style.setProperty("--flashDur", "0.7s");
+      flashEl.style.setProperty("--flashOpacity", "0.35");
+      restartAnim(flashEl, "on");
+    }
+
+    function renderMarks() {
+      marksEl.innerHTML = "";
+      intervals.forEach(it => {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = it.label || msToLabel(it.timeMs);
+        pill.style.borderColor = it.color;
+        marksEl.appendChild(pill);
+      });
+      hintEl.textContent = `${intervals.length} interval${intervals.length !== 1 ? "s" : ""} configured.`;
+    }
+
+    function triggerInterval(i) {
+      runFlash(intervals[i]);
+    }
+
+    function tick(now) {
+      const elapsed = now - startMs;
+      timeEl.textContent = formatTime(elapsed);
+      for (let i = 0; i < intervals.length; i++) {
+        if (!fired[i] && elapsed >= intervals[i].timeMs) {
+          fired[i] = true;
+          triggerInterval(i);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function reset() {
+      startMs = performance.now();
+      fired = intervals.map(() => false);
+      timeEl.textContent = "0:00.0";
+      flashEl.classList.remove("on");
+      popupEl.classList.remove("on");
+      if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+    }
+
+    // Config UI
+    function renderConfigUI() {
+      intervalList.innerHTML = "";
+      intervals.forEach((it, i) => {
+        const row = document.createElement("div");
+        row.className = "intervalRow";
+        row.innerHTML = `
+          <input type="text" value="${it.label || msToLabel(it.timeMs)}" placeholder="m:ss" title="Time (e.g. 1:30)" data-idx="${i}" data-field="time">
+          <input type="color" value="${it.color}" title="Flash color" data-idx="${i}" data-field="color">
+          <button class="remove" data-idx="${i}">✕</button>
+        `;
+        intervalList.appendChild(row);
+      });
+    }
+
+    function readConfigFromUI() {
+      const rows = intervalList.querySelectorAll(".intervalRow");
+      const newIntervals = [];
+      rows.forEach((row, i) => {
+        const timeInput = row.querySelector('[data-field="time"]');
+        const colorInput = row.querySelector('[data-field="color"]');
+        const timeMs = parseTime(timeInput.value);
+        if (!isNaN(timeMs) && timeMs > 0) {
+          newIntervals.push({
+            label: timeInput.value.trim(),
+            timeMs,
+            color: colorInput.value
+          });
+        }
+      });
+      return newIntervals.sort((a, b) => a.timeMs - b.timeMs);
+    }
+
+    // Event Listeners
+    toggleConfigBtn.addEventListener("click", () => {
+      configPanel.classList.toggle("open");
+      if (configPanel.classList.contains("open")) {
+        renderConfigUI();
+      }
+    });
+
+    addIntervalBtn.addEventListener("click", () => {
+      intervals.push({ label: "", timeMs: 60000, color: "#ffffff" });
+      renderConfigUI();
+    });
+
+    intervalList.addEventListener("click", e => {
+      if (e.target.classList.contains("remove")) {
+        const idx = parseInt(e.target.dataset.idx, 10);
+        intervals.splice(idx, 1);
+        renderConfigUI();
+      }
+    });
+
+    applyConfigBtn.addEventListener("click", () => {
+      intervals = readConfigFromUI();
+      if (intervals.length === 0) {
+        intervals = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
+      }
+      renderMarks();
+      reset();
+      configPanel.classList.remove("open");
+    });
+
+    resetBtn.addEventListener("click", reset);
+    window.addEventListener("keydown", e => { if (e.key.toLowerCase() === "r") reset(); });
+
+    // Init
+    renderMarks();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
