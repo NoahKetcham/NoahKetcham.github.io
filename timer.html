@@ -100,9 +100,11 @@
     }
     .intervalRow:last-of-type{border-bottom:none}
     .intervalRow input[type="text"]{
-      width:70px; padding:8px; border-radius:8px; border:1px solid var(--ring);
+      padding:8px; border-radius:8px; border:1px solid var(--ring);
       background:rgba(255,255,255,.08); color:var(--text); font-size:14px;
     }
+    .intervalRow input[type="text"].time-input{width:70px}
+    .intervalRow input[type="text"].popup-input{flex:1;min-width:100px}
     .intervalRow input[type="color"]{
       width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:transparent;
     }
@@ -145,9 +147,9 @@
   <script>
     // Default intervals (original settings)
     const DEFAULT_INTERVALS = [
-      { label: "0:30", timeMs: 30000, color: "#ff3232" },
-      { label: "1:00", timeMs: 60000, color: "#00ff78" },
-      { label: "1:45", timeMs: 105000, color: "#ffe600" }
+      { label: "0:30", timeMs: 30000, color: "#ff3232", popupText: "" },
+      { label: "1:00", timeMs: 60000, color: "#00ff78", popupText: "" },
+      { label: "1:45", timeMs: 105000, color: "#ffe600", popupText: "" }
     ];
 
     // State
@@ -222,8 +224,22 @@
       hintEl.textContent = `${intervals.length} interval${intervals.length !== 1 ? "s" : ""} configured.`;
     }
 
+    function runPopup(text) {
+      if (!text) return;
+      popupTextEl.textContent = text;
+      popupEl.style.setProperty("--popupDur", "1.2s");
+      restartAnim(popupEl, "on");
+      if (popupTimeout) clearTimeout(popupTimeout);
+      popupTimeout = setTimeout(() => {
+        popupEl.classList.remove("on");
+        popupTimeout = null;
+      }, 1250);
+    }
+
     function triggerInterval(i) {
-      runFlash(intervals[i]);
+      const it = intervals[i];
+      runFlash(it);
+      if (it.popupText) runPopup(it.popupText);
     }
 
     function tick(now) {
@@ -254,8 +270,9 @@
         const row = document.createElement("div");
         row.className = "intervalRow";
         row.innerHTML = `
-          <input type="text" value="${it.label || msToLabel(it.timeMs)}" placeholder="m:ss" title="Time (e.g. 1:30)" data-idx="${i}" data-field="time">
+          <input type="text" class="time-input" value="${it.label || msToLabel(it.timeMs)}" placeholder="m:ss" title="Time (e.g. 1:30)" data-idx="${i}" data-field="time">
           <input type="color" value="${it.color}" title="Flash color" data-idx="${i}" data-field="color">
+          <input type="text" class="popup-input" value="${it.popupText || ''}" placeholder="Popup text (optional)" title="Text to display on screen" data-idx="${i}" data-field="popup">
           <button class="remove" data-idx="${i}">✕</button>
         `;
         intervalList.appendChild(row);
@@ -268,12 +285,14 @@
       rows.forEach((row, i) => {
         const timeInput = row.querySelector('[data-field="time"]');
         const colorInput = row.querySelector('[data-field="color"]');
+        const popupInput = row.querySelector('[data-field="popup"]');
         const timeMs = parseTime(timeInput.value);
         if (!isNaN(timeMs) && timeMs > 0) {
           newIntervals.push({
             label: timeInput.value.trim(),
             timeMs,
-            color: colorInput.value
+            color: colorInput.value,
+            popupText: popupInput.value.trim()
           });
         }
       });
@@ -289,7 +308,7 @@
     });
 
     addIntervalBtn.addEventListener("click", () => {
-      intervals.push({ label: "", timeMs: 60000, color: "#ffffff" });
+      intervals.push({ label: "", timeMs: 60000, color: "#ffffff", popupText: "" });
       renderConfigUI();
     });
 
