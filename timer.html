@@ -34,6 +34,7 @@
       font-weight:800;
       margin: 8px 0 14px;
       user-select:none;
+      transition: color 0.3s ease;
     }
     .hint{color:var(--muted); margin:0 0 18px; font-size:14px}
     .marks{
@@ -63,11 +64,12 @@
     button:focus-visible{outline:3px solid rgba(255,255,255,.35); outline-offset:3px}
 
     /* Flash overlay */
-    .flash{position:fixed; inset:0; pointer-events:none; opacity:0}
+    .flash{position:fixed; inset:0; pointer-events:none; opacity:0; z-index:1}
     .flash.on{animation: flash var(--flashDur, .7s) ease-in-out 0s var(--flashRepeats, 3)}
     @keyframes flash{
       0%{opacity:0} 25%{opacity:var(--flashOpacity, .35)} 50%{opacity:.05} 75%{opacity:var(--flashOpacity, .35)} 100%{opacity:0}
     }
+
 
     /* Popup overlay */
     .popup{position:fixed; inset:0; display:grid; place-items:center; pointer-events:none; opacity:0}
@@ -116,12 +118,123 @@
     .addInterval{margin-top:12px;width:100%}
     .applyBtn{margin-top:16px;background:#2a5a3a}
     .applyBtn:hover{background:#3a7a4a}
+
+    /* Toggle Switch */
+    .flashModeRow{
+      display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+      padding:12px 0; border-bottom:1px solid var(--ring);
+      margin-bottom:12px;
+    }
+    .flashModeRow label{
+      font-size:14px; color:var(--text); cursor:pointer;
+      display:flex; align-items:center; gap:10px;
+    }
+    .toggleSwitch{
+      position:relative; width:52px; height:28px;
+      background:var(--btn); border-radius:999px;
+      cursor:pointer; transition:background .2s ease;
+      border:1px solid var(--ring);
+    }
+    .toggleSwitch.active{background:#2a5a3a}
+    .toggleSwitch::after{
+      content:''; position:absolute; top:2px; left:2px;
+      width:22px; height:22px; background:#fff;
+      border-radius:50%; transition:transform .2s ease;
+      box-shadow:0 2px 4px rgba(0,0,0,.2);
+    }
+    .toggleSwitch.active::after{transform:translateX(24px)}
+    .toggleSwitchLabel{
+      font-size:13px; color:var(--muted); min-width:100px;
+    }
+
+    /* Checkbox Toggle */
+    .autoResetRow{
+      display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+      padding:12px 0; border-bottom:1px solid var(--ring);
+      margin-bottom:12px;
+    }
+    .autoResetRow label{
+      font-size:14px; color:var(--text); cursor:pointer;
+      display:flex; align-items:center; gap:10px;
+    }
+    .checkboxToggle{
+      width:20px; height:20px; cursor:pointer;
+      accent-color:var(--btn); flex-shrink:0;
+    }
+    .resetTimeInput{
+      padding:8px; border-radius:8px; border:1px solid var(--ring);
+      background:rgba(255,255,255,.08); color:var(--text); font-size:14px;
+      width:80px; margin-left:10px; display:none;
+    }
+    .resetTimeInput.visible{display:inline-block}
+    .resetTimeInput:invalid{
+      border-color:#ff3232; background:rgba(255,50,50,.15);
+    }
+    .resetCountdown{
+      position:fixed; inset:0; display:grid; place-items:center;
+      pointer-events:none; z-index:100; opacity:0;
+      transition:opacity 0.2s ease;
+    }
+    .resetCountdown.active{opacity:1}
+    .resetCountdownText{
+      font-size: clamp(48px, 8vw, 96px); font-weight:950;
+      color:var(--text); text-shadow:0 8px 28px rgba(0,0,0,.7);
+      background:rgba(0,0,0,.6); padding:24px 48px; border-radius:24px;
+      border:2px solid var(--ring);
+    }
+
+    /* Log Section */
+    .logSection{
+      margin-top:28px; padding:18px; border-radius:16px;
+      background:rgba(0,0,0,.25); border:1px solid var(--ring);
+      text-align:left;
+    }
+    .logSection h3{
+      margin:0 0 14px; font-size:15px; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.1em; text-align:center;
+    }
+    .logList{
+      display:flex; flex-direction:column; gap:10px; max-height:400px;
+      overflow-y:auto; padding-right:4px;
+    }
+    .logEntry{
+      display:flex; align-items:center; gap:12px; padding:10px;
+      border-radius:8px; background:rgba(255,255,255,.05);
+      border:1px solid var(--ring); font-size:14px;
+    }
+    .logEntry:first-child{background:rgba(255,255,255,.08)}
+    .logColor{
+      width:24px; height:24px; border-radius:4px;
+      border:1px solid var(--ring); flex-shrink:0;
+    }
+    .logTime{
+      font-variant-numeric: tabular-nums; font-weight:600;
+      min-width:80px; color:var(--text);
+    }
+    .logSeconds{
+      color:var(--muted); font-size:12px; min-width:60px;
+    }
+    .logInterval{
+      flex:1; color:var(--muted); font-style:italic;
+    }
+    .logEntryNumber{
+      color:var(--muted); font-size:12px; min-width:30px;
+      text-align:right; font-weight:600;
+    }
+    .logList:empty::before{
+      content:"No resets yet. Reset the timer to start logging.";
+      display:block; text-align:center; color:var(--muted);
+      padding:20px; font-style:italic;
+    }
   </style>
 </head>
 <body>
   <div class="flash" id="flash"></div>
   <div class="popup" id="popup" aria-hidden="true">
     <div class="popupCard" id="popupCard"><p class="popupText" id="popupText"></p></div>
+  </div>
+  <div class="resetCountdown" id="resetCountdown">
+    <div class="resetCountdownText" id="resetCountdownText"></div>
   </div>
 
   <main class="wrap" role="application" aria-label="Configurable count up timer">
@@ -139,9 +252,30 @@
     <!-- Simple Config Panel -->
     <div class="configPanel" id="configPanel">
       <h3>Intervals</h3>
+      <div class="flashModeRow">
+        <label>
+          <span class="toggleSwitchLabel">Flash Mode:</span>
+          <div class="toggleSwitch" id="flashModeToggle" role="switch" aria-checked="true" tabindex="0">
+          </div>
+          <span id="flashModeText">Flash</span>
+        </label>
+      </div>
+      <div class="autoResetRow">
+        <label>
+          <input type="checkbox" class="checkboxToggle" id="autoResetToggle">
+          <span>Automatically reset timer?</span>
+        </label>
+        <input type="text" class="resetTimeInput" id="resetTimeInput" value="2:00" placeholder="m:ss" pattern="[0-9]+:[0-5][0-9]|[0-9]+">
+      </div>
       <div id="intervalList"></div>
       <button class="addInterval" id="addInterval" type="button">+ Add Interval</button>
       <button class="applyBtn" id="applyConfig" type="button">Apply & Reset</button>
+    </div>
+
+    <!-- Log Section -->
+    <div class="logSection">
+      <h3>Reset Log</h3>
+      <div class="logList" id="logList"></div>
     </div>
   </main>
 
@@ -160,6 +294,14 @@
     let popupTimeout = null;
     let animationFrameId = null;
     let isRunning = true; // Track if timer is running
+    let resetLog = []; // Array to store reset log entries
+    let lastElapsedMs = 0; // Track elapsed time for logging
+    let flashMode = true; // true = Flash, false = Persist Color
+    let currentPersistColor = null; // Track current persisted color
+    let autoResetEnabled = false; // Auto-reset toggle state
+    let autoResetTimeMs = 120000; // Default 2:00 in milliseconds
+    let resetCountdownActive = false; // Track if countdown is active
+    let resetCountdownInterval = null; // Interval for countdown
 
     // Elements
     const timeEl = document.getElementById("time");
@@ -176,6 +318,13 @@
     const intervalList = document.getElementById("intervalList");
     const addIntervalBtn = document.getElementById("addInterval");
     const applyConfigBtn = document.getElementById("applyConfig");
+    const logList = document.getElementById("logList");
+    const flashModeToggle = document.getElementById("flashModeToggle");
+    const flashModeText = document.getElementById("flashModeText");
+    const autoResetToggle = document.getElementById("autoResetToggle");
+    const resetTimeInput = document.getElementById("resetTimeInput");
+    const resetCountdown = document.getElementById("resetCountdown");
+    const resetCountdownText = document.getElementById("resetCountdownText");
 
     // Helpers
     function formatTime(ms) {
@@ -216,6 +365,12 @@
       restartAnim(flashEl, "on");
     }
 
+    function runPersistColor(it) {
+      // Set the timer text color - it will persist until next interval or reset/stop
+      currentPersistColor = it.color || "#ffffff";
+      timeEl.style.color = currentPersistColor;
+    }
+
     function renderMarks() {
       marksEl.innerHTML = "";
       intervals.forEach(it => {
@@ -242,19 +397,32 @@
 
     function triggerInterval(i) {
       const it = intervals[i];
-      runFlash(it);
+      if (flashMode) {
+        runFlash(it);
+      } else {
+        runPersistColor(it);
+      }
       if (it.popupText) runPopup(it.popupText);
     }
 
     function tick(now) {
       const elapsed = now - startMs;
+      lastElapsedMs = elapsed; // Track elapsed time for logging
       timeEl.textContent = formatTime(elapsed);
+      
+      // Check intervals
       for (let i = 0; i < intervals.length; i++) {
         if (!fired[i] && elapsed >= intervals[i].timeMs) {
           fired[i] = true;
           triggerInterval(i);
         }
       }
+      
+      // Check auto-reset
+      if (autoResetEnabled && !resetCountdownActive && elapsed >= autoResetTimeMs) {
+        startResetCountdown();
+      }
+      
       animationFrameId = requestAnimationFrame(tick);
     }
 
@@ -262,13 +430,157 @@
       stopBtn.textContent = isRunning ? "STOP" : "START";
     }
 
+    function getActiveInterval() {
+      // Find the last fired interval (most recent one reached)
+      let lastFiredIndex = -1;
+      for (let i = intervals.length - 1; i >= 0; i--) {
+        if (fired[i]) {
+          lastFiredIndex = i;
+          break;
+        }
+      }
+      return lastFiredIndex >= 0 ? intervals[lastFiredIndex] : null;
+    }
+
+    function addLogEntry() {
+      const elapsedSeconds = Math.floor(lastElapsedMs / 1000);
+      const activeInterval = getActiveInterval();
+      
+      const logEntry = {
+        timeSeconds: elapsedSeconds,
+        timeFormatted: formatTime(lastElapsedMs),
+        intervalLabel: activeInterval ? (activeInterval.label || msToLabel(activeInterval.timeMs)) : null,
+        intervalColor: activeInterval ? activeInterval.color : null,
+        intervalPopupText: activeInterval ? (activeInterval.popupText || null) : null,
+        entryNumber: resetLog.length + 1
+      };
+      
+      resetLog.unshift(logEntry); // Add to beginning of array (most recent first)
+      renderLog();
+    }
+
+    function renderLog() {
+      logList.innerHTML = "";
+      resetLog.forEach(entry => {
+        const entryEl = document.createElement("div");
+        entryEl.className = "logEntry";
+        
+        const colorEl = document.createElement("div");
+        colorEl.className = "logColor";
+        colorEl.style.background = entry.intervalColor || "transparent";
+        colorEl.style.borderColor = entry.intervalColor || "var(--ring)";
+        
+        const numberEl = document.createElement("span");
+        numberEl.className = "logEntryNumber";
+        numberEl.textContent = `#${entry.entryNumber}`;
+        
+        const timeEl = document.createElement("span");
+        timeEl.className = "logTime";
+        timeEl.textContent = entry.timeFormatted;
+        
+        const secondsEl = document.createElement("span");
+        secondsEl.className = "logSeconds";
+        secondsEl.textContent = `(${entry.timeSeconds}s)`;
+        
+        const intervalEl = document.createElement("span");
+        intervalEl.className = "logInterval";
+        if (entry.intervalLabel) {
+          let intervalText = `Interval: ${entry.intervalLabel}`;
+          if (entry.intervalPopupText) {
+            intervalText += ` - ${entry.intervalPopupText}`;
+          }
+          intervalEl.textContent = intervalText;
+        } else {
+          intervalEl.textContent = "No interval reached";
+        }
+        
+        entryEl.appendChild(numberEl);
+        entryEl.appendChild(colorEl);
+        entryEl.appendChild(timeEl);
+        entryEl.appendChild(secondsEl);
+        entryEl.appendChild(intervalEl);
+        
+        logList.appendChild(entryEl);
+      });
+    }
+
+    function startResetCountdown() {
+      if (resetCountdownActive) return;
+      
+      // Stop the timer
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      
+      // Log the reset before clearing (use current elapsed time)
+      const currentElapsed = performance.now() - startMs;
+      if (currentElapsed > 0) {
+        lastElapsedMs = currentElapsed;
+        addLogEntry();
+      }
+      
+      // Reset timer display to zero
+      timeEl.textContent = "0:00.0";
+      lastElapsedMs = 0;
+      
+      // Clear fired intervals and persist color
+      fired = intervals.map(() => false);
+      timeEl.style.color = "";
+      currentPersistColor = null;
+      flashEl.classList.remove("on");
+      popupEl.classList.remove("on");
+      if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+      
+      resetCountdownActive = true;
+      let countdown = 3;
+      resetCountdown.classList.add("active");
+      resetCountdownText.textContent = `Resetting timer in ${countdown}`;
+      
+      resetCountdownInterval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          resetCountdownText.textContent = `Resetting timer in ${countdown}`;
+        } else {
+          clearInterval(resetCountdownInterval);
+          resetCountdownInterval = null;
+          resetCountdown.classList.remove("active");
+          resetCountdownActive = false;
+          // Restart the timer from zero
+          startMs = performance.now();
+          isRunning = true;
+          animationFrameId = requestAnimationFrame(tick);
+          updateStopButtonText();
+        }
+      }, 1000);
+    }
+
     function reset() {
+      // Stop countdown if active
+      if (resetCountdownInterval) {
+        clearInterval(resetCountdownInterval);
+        resetCountdownInterval = null;
+      }
+      resetCountdown.classList.remove("active");
+      resetCountdownActive = false;
+      
+      // Log the reset before clearing
+      if (lastElapsedMs > 0) {
+        addLogEntry();
+      }
+      
       startMs = performance.now();
+      lastElapsedMs = 0;
       fired = intervals.map(() => false);
       timeEl.textContent = "0:00.0";
       flashEl.classList.remove("on");
       popupEl.classList.remove("on");
       if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+      
+      // Clear persist color
+      timeEl.style.color = "";
+      currentPersistColor = null;
+      
       if (animationFrameId === null) {
         isRunning = true;
         animationFrameId = requestAnimationFrame(tick);
@@ -289,6 +601,15 @@
         flashEl.classList.remove("on");
         popupEl.classList.remove("on");
         if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+        
+        // Clear persist color
+        if (persistColorTimeout) {
+          clearTimeout(persistColorTimeout);
+          persistColorTimeout = null;
+        }
+        document.body.style.background = "";
+        currentPersistColor = null;
+        
         isRunning = false;
         updateStopButtonText();
       } else {
@@ -299,6 +620,15 @@
         flashEl.classList.remove("on");
         popupEl.classList.remove("on");
         if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+        
+        // Clear persist color
+        if (persistColorTimeout) {
+          clearTimeout(persistColorTimeout);
+          persistColorTimeout = null;
+        }
+        document.body.style.background = "";
+        currentPersistColor = null;
+        
         isRunning = true;
         animationFrameId = requestAnimationFrame(tick);
         updateStopButtonText();
@@ -346,12 +676,19 @@
       configPanel.classList.toggle("open");
       if (configPanel.classList.contains("open")) {
         renderConfigUI();
+        // Add validation listeners to interval time inputs
+        intervalList.addEventListener("input", (e) => {
+          if (e.target.dataset.field === "time") {
+            validateResetTime();
+          }
+        });
       }
     });
 
     addIntervalBtn.addEventListener("click", () => {
       intervals.push({ label: "", timeMs: 60000, color: "#ffffff", popupText: "" });
       renderConfigUI();
+      validateResetTime(); // Re-validate after adding interval
     });
 
     intervalList.addEventListener("click", e => {
@@ -359,6 +696,54 @@
         const idx = parseInt(e.target.dataset.idx, 10);
         intervals.splice(idx, 1);
         renderConfigUI();
+        validateResetTime(); // Re-validate after removing interval
+      }
+    });
+
+    function validateResetTime() {
+      if (!autoResetEnabled) return true;
+      
+      // Get max interval time
+      const maxIntervalMs = intervals.length > 0 
+        ? Math.max(...intervals.map(it => it.timeMs))
+        : 0;
+      
+      const resetMs = parseTime(resetTimeInput.value);
+      
+      if (isNaN(resetMs) || resetMs <= 0) {
+        resetTimeInput.setCustomValidity("Invalid time format");
+        return false;
+      }
+      
+      if (resetMs < maxIntervalMs) {
+        resetTimeInput.setCustomValidity(`Reset time must be at least ${msToLabel(maxIntervalMs)}`);
+        return false;
+      }
+      
+      resetTimeInput.setCustomValidity("");
+      return true;
+    }
+
+    function updateAutoResetUI() {
+      if (autoResetEnabled) {
+        resetTimeInput.classList.add("visible");
+        resetTimeInput.required = true;
+      } else {
+        resetTimeInput.classList.remove("visible");
+        resetTimeInput.required = false;
+      }
+      validateResetTime();
+    }
+
+    autoResetToggle.addEventListener("change", () => {
+      autoResetEnabled = autoResetToggle.checked;
+      updateAutoResetUI();
+    });
+
+    resetTimeInput.addEventListener("input", () => {
+      validateResetTime();
+      if (resetTimeInput.validity.valid) {
+        autoResetTimeMs = parseTime(resetTimeInput.value);
       }
     });
 
@@ -367,9 +752,53 @@
       if (intervals.length === 0) {
         intervals = JSON.parse(JSON.stringify(DEFAULT_INTERVALS));
       }
+      
+      // Validate and update auto-reset
+      if (!validateResetTime()) {
+        resetTimeInput.focus();
+        return;
+      }
+      
+      if (autoResetEnabled) {
+        autoResetTimeMs = parseTime(resetTimeInput.value);
+      }
+      
       renderMarks();
       reset();
       configPanel.classList.remove("open");
+    });
+
+    // Flash mode toggle
+    function updateFlashModeUI() {
+      if (flashMode) {
+        flashModeToggle.classList.remove("active");
+        flashModeToggle.setAttribute("aria-checked", "true");
+        flashModeText.textContent = "Flash";
+      } else {
+        flashModeToggle.classList.add("active");
+        flashModeToggle.setAttribute("aria-checked", "false");
+        flashModeText.textContent = "Persist Color";
+      }
+    }
+
+    flashModeToggle.addEventListener("click", () => {
+      flashMode = !flashMode;
+      updateFlashModeUI();
+      // Clear any active persist color when switching modes
+      if (!flashMode && currentPersistColor) {
+        // Already in persist mode, keep current color
+      } else if (flashMode) {
+        // Switching to flash mode, clear persist color
+        timeEl.style.color = "";
+        currentPersistColor = null;
+      }
+    });
+
+    flashModeToggle.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        flashModeToggle.click();
+      }
     });
 
     resetBtn.addEventListener("click", reset);
@@ -379,6 +808,8 @@
     // Init
     renderMarks();
     updateStopButtonText();
+    updateFlashModeUI();
+    updateAutoResetUI();
     animationFrameId = requestAnimationFrame(tick);
   </script>
 </body>
