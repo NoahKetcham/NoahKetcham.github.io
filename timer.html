@@ -132,6 +132,7 @@
 
     <div class="actions">
       <button id="reset" type="button">RESET</button>
+      <button id="stop" type="button">STOP</button>
       <button id="toggleConfig" type="button">⚙ Settings</button>
     </div>
 
@@ -157,12 +158,15 @@
     let fired = [];
     let startMs = performance.now();
     let popupTimeout = null;
+    let animationFrameId = null;
+    let isRunning = true; // Track if timer is running
 
     // Elements
     const timeEl = document.getElementById("time");
     const hintEl = document.getElementById("hint");
     const marksEl = document.getElementById("marks");
     const resetBtn = document.getElementById("reset");
+    const stopBtn = document.getElementById("stop");
     const flashEl = document.getElementById("flash");
     const popupEl = document.getElementById("popup");
     const popupCardEl = document.getElementById("popupCard");
@@ -251,7 +255,11 @@
           triggerInterval(i);
         }
       }
-      requestAnimationFrame(tick);
+      animationFrameId = requestAnimationFrame(tick);
+    }
+
+    function updateStopButtonText() {
+      stopBtn.textContent = isRunning ? "STOP" : "START";
     }
 
     function reset() {
@@ -261,6 +269,40 @@
       flashEl.classList.remove("on");
       popupEl.classList.remove("on");
       if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+      if (animationFrameId === null) {
+        isRunning = true;
+        animationFrameId = requestAnimationFrame(tick);
+        updateStopButtonText();
+      }
+    }
+
+    function stop() {
+      if (isRunning) {
+        // Stop the timer and reset to 0
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+        }
+        startMs = performance.now();
+        fired = intervals.map(() => false);
+        timeEl.textContent = "0:00.0";
+        flashEl.classList.remove("on");
+        popupEl.classList.remove("on");
+        if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+        isRunning = false;
+        updateStopButtonText();
+      } else {
+        // Start the timer from 0
+        startMs = performance.now();
+        fired = intervals.map(() => false);
+        timeEl.textContent = "0:00.0";
+        flashEl.classList.remove("on");
+        popupEl.classList.remove("on");
+        if (popupTimeout) { clearTimeout(popupTimeout); popupTimeout = null; }
+        isRunning = true;
+        animationFrameId = requestAnimationFrame(tick);
+        updateStopButtonText();
+      }
     }
 
     // Config UI
@@ -331,11 +373,13 @@
     });
 
     resetBtn.addEventListener("click", reset);
+    stopBtn.addEventListener("click", stop);
     window.addEventListener("keydown", e => { if (e.key.toLowerCase() === "r") reset(); });
 
     // Init
     renderMarks();
-    requestAnimationFrame(tick);
+    updateStopButtonText();
+    animationFrameId = requestAnimationFrame(tick);
   </script>
 </body>
 </html>
