@@ -63,6 +63,44 @@
     button:active{transform:translateY(2px) scale(.99)}
     button:focus-visible{outline:3px solid rgba(255,255,255,.35); outline-offset:3px}
 
+    /* Voice Control */
+    .voiceControl{
+      display:flex; align-items:center; gap:8px; margin-bottom:18px;
+      justify-content:center; flex-wrap:wrap;
+    }
+    .voiceToggleBtn{
+      display:flex; align-items:center; gap:8px; padding:10px 18px;
+      font-size:14px; border-radius:10px; background:var(--btn);
+      color:var(--btnText); border:none; cursor:pointer;
+      transition:background .15s ease, transform .06s ease;
+      font-weight:600;
+    }
+    .voiceToggleBtn:hover{background:#3a4a62}
+    .voiceToggleBtn:active{transform:translateY(1px) scale(.98)}
+    .voiceToggleBtn.active{background:#2a5a3a}
+    .voiceToggleBtn.active:hover{background:#3a7a4a}
+    .voiceIcon{
+      width:18px; height:18px; position:relative;
+    }
+    .voiceIcon::before{
+      content:'🎤'; font-size:16px; display:block;
+    }
+    .voiceToggleBtn.active .voiceIcon::before{
+      animation: pulseMic 1.5s ease-in-out infinite;
+    }
+    @keyframes pulseMic{
+      0%, 100%{transform:scale(1); opacity:1}
+      50%{transform:scale(1.15); opacity:0.8}
+    }
+    .voiceStatus{
+      font-size:12px; color:var(--muted); padding:6px 12px;
+      border-radius:8px; background:rgba(255,255,255,.05);
+      border:1px solid var(--ring); display:none;
+    }
+    .voiceStatus.show{display:block}
+    .voiceStatus.listening{color:#00ff78; border-color:#00ff78}
+    .voiceStatus.error{color:#ff3232; border-color:#ff3232}
+
     /* Flash overlay */
     .flash{position:fixed; inset:0; pointer-events:none; opacity:0; z-index:1}
     .flash.on{animation: flash var(--flashDur, .7s) ease-in-out 0s var(--flashRepeats, 3)}
@@ -415,6 +453,14 @@
     <p class="hint" id="hint">Configured intervals will flash when reached.</p>
     <div class="marks" id="marks"></div>
 
+    <div class="voiceControl">
+      <button id="voiceToggle" class="voiceToggleBtn" type="button" aria-label="Toggle voice controls">
+        <span class="voiceIcon"></span>
+        <span id="voiceToggleText">Voice Control</span>
+      </button>
+      <div id="voiceStatus" class="voiceStatus" aria-live="polite"></div>
+    </div>
+
     <div class="actions">
       <button id="reset" type="button">RESET</button>
       <button id="stop" type="button">STOP</button>
@@ -534,6 +580,183 @@
     const saveModalSave = document.getElementById("saveModalSave");
     const intervalsInfoBtn = document.getElementById("intervalsInfoBtn");
     const intervalsInfoPopup = document.getElementById("intervalsInfoPopup");
+    const voiceToggleBtn = document.getElementById("voiceToggle");
+    const voiceToggleText = document.getElementById("voiceToggleText");
+    const voiceStatus = document.getElementById("voiceStatus");
+
+    // Voice Recognition Setup
+    let recognition = null;
+    let voiceControlsEnabled = false;
+    let recognitionRestartTimeout = null;
+
+    // Initialize Speech Recognition
+    function initVoiceRecognition() {
+      // Check browser support
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        voiceToggleBtn.disabled = true;
+        voiceToggleBtn.title = 'Speech recognition not supported in this browser';
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        if (!voiceControlsEnabled) return;
+        
+        const lastResult = event.results[event.results.length - 1];
+        const command = lastResult[0].transcript.toLowerCase().trim();
+        
+        showVoiceStatus(`Heard: "${command}"`, 'listening');
+        
+        // Map voice commands to functions
+        if (command.includes('reset')) {
+          reset();
+          showVoiceStatus('Reset executed', 'listening');
+        } else if (command.includes('stop') && isRunning) {
+          stop();
+          showVoiceStatus('Timer stopped', 'listening');
+        } else if ((command.includes('start') || command.includes('resume')) && !isRunning) {
+          stop(); // stop() toggles, so this will resume
+          showVoiceStatus('Timer started', 'listening');
+        } else if (command.includes('settings') || command.includes('config')) {
+          configPanel.classList.toggle('open');
+          if (configPanel.classList.contains('open')) {
+            renderConfigUI();
+          }
+          showVoiceStatus('Settings toggled', 'listening');
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        
+        if (event.error === 'no-speech') {
+          // No speech detected, silently restart
+          restartRecognition();
+          return;
+        }
+        
+        if (event.error === 'not-allowed') {
+          voiceControlsEnabled = false;
+          updateVoiceUI();
+          showVoiceStatus('Microphone permission denied', 'error');
+          setTimeout(() => hideVoiceStatus(), 3000);
+        } else if (event.error === 'network') {
+          showVoiceStatus('Network error - check connection', 'error');
+          restartRecognition();
+        } else {
+          showVoiceStatus(`Error: ${event.error}`, 'error');
+          restartRecognition();
+        }
+      };
+
+      recognition.onend = () => {
+        // Restart recognition if voice controls are enabled
+        if (voiceControlsEnabled) {
+          restartRecognition();
+        }
+      };
+
+      recognition.onstart = () => {
+        if (voiceControlsEnabled) {
+          showVoiceStatus('Listening...', 'listening');
+        }
+      };
+    }
+
+    function restartRecognition() {
+      if (!voiceControlsEnabled || !recognition) return;
+      
+      // Clear any existing timeout
+      if (recognitionRestartTimeout) {
+        clearTimeout(recognitionRestartTimeout);
+      }
+      
+      // Small delay before restarting to avoid rapid restarts
+      recognitionRestartTimeout = setTimeout(() => {
+        try {
+          recognition.start();
+        } catch (e) {
+          // Recognition already started or other error
+          if (e.name !== 'InvalidStateError') {
+            console.error('Failed to restart recognition:', e);
+          }
+        }
+      }, 100);
+    }
+
+    function showVoiceStatus(message, type = '') {
+      voiceStatus.textContent = message;
+      voiceStatus.className = `voiceStatus show ${type}`;
+      
+      // Auto-hide after 2 seconds for non-listening status
+      if (type !== 'listening') {
+        setTimeout(() => {
+          if (voiceControlsEnabled) {
+            voiceStatus.textContent = 'Listening...';
+            voiceStatus.className = 'voiceStatus show listening';
+          } else {
+            hideVoiceStatus();
+          }
+        }, 2000);
+      }
+    }
+
+    function hideVoiceStatus() {
+      voiceStatus.className = 'voiceStatus';
+    }
+
+    function toggleVoiceControls() {
+      if (!recognition) {
+        alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+        return;
+      }
+
+      voiceControlsEnabled = !voiceControlsEnabled;
+      updateVoiceUI();
+
+      if (voiceControlsEnabled) {
+        try {
+          recognition.start();
+          showVoiceStatus('Voice control enabled', 'listening');
+        } catch (e) {
+          console.error('Failed to start recognition:', e);
+          voiceControlsEnabled = false;
+          updateVoiceUI();
+          
+          if (e.name === 'NotAllowedError') {
+            showVoiceStatus('Microphone permission required', 'error');
+            setTimeout(() => hideVoiceStatus(), 3000);
+          } else {
+            showVoiceStatus('Failed to start voice recognition', 'error');
+            setTimeout(() => hideVoiceStatus(), 3000);
+          }
+        }
+      } else {
+        recognition.stop();
+        hideVoiceStatus();
+      }
+    }
+
+    function updateVoiceUI() {
+      if (voiceControlsEnabled) {
+        voiceToggleBtn.classList.add('active');
+        voiceToggleText.textContent = 'Voice Control ON';
+        voiceToggleBtn.setAttribute('aria-pressed', 'true');
+      } else {
+        voiceToggleBtn.classList.remove('active');
+        voiceToggleText.textContent = 'Voice Control';
+        voiceToggleBtn.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    // Initialize voice recognition on page load
+    initVoiceRecognition();
+    voiceToggleBtn.addEventListener('click', toggleVoiceControls);
 
     // Helpers
     function formatTime(ms) {
