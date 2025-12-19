@@ -24,6 +24,7 @@
       border-radius:24px;
       box-shadow:0 20px 60px rgba(0,0,0,.45);
       text-align:center;
+      position:relative;
     }
     .label{
       font-size:14px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;
@@ -160,6 +161,29 @@
       backdrop-filter:blur(10px);
     }
     .infoPopup.show{display:block}
+    .voiceCommandsInfoBtn{
+      position:absolute; top:20px; right:20px;
+      width:28px; height:28px; padding:0; margin:0;
+      border-radius:50%; border:1px solid var(--ring);
+      background:rgba(255,255,255,.1); color:var(--text);
+      font-size:18px; font-weight:bold; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:background .2s ease, transform .1s ease;
+      z-index:10;
+    }
+    .voiceCommandsInfoBtn:hover{
+      background:rgba(255,255,255,.2); transform:scale(1.1);
+    }
+    .voiceCommandsInfoBtn:active{transform:scale(.95)}
+    .voiceCommandsPopup{
+      position:absolute; top:calc(100% + 8px); right:0;
+      width:min(450px, 90vw); z-index:1000;
+      background:rgba(0,0,0,.9); border:1px solid var(--ring);
+      border-radius:12px; padding:0; display:none;
+      box-shadow:0 12px 40px rgba(0,0,0,.6);
+      backdrop-filter:blur(10px);
+    }
+    .voiceCommandsPopup.show{display:block}
     .infoPopupContent{
       padding:20px; color:var(--text);
     }
@@ -448,6 +472,48 @@
   </div>
 
   <main class="wrap" role="application" aria-label="Configurable count up timer">
+    <button class="voiceCommandsInfoBtn" id="voiceCommandsInfoBtn" type="button" aria-label="Show voice commands help">?</button>
+    <div class="voiceCommandsPopup" id="voiceCommandsPopup">
+      <div class="infoPopupContent">
+        <h4>Voice Commands</h4>
+        <div class="infoSection">
+          <strong>How to Use:</strong>
+          <ol style="margin:8px 0 0 20px; padding:0; list-style:decimal;">
+            <li style="margin-bottom:8px;">Click the "Voice Control" button to enable voice commands</li>
+            <li style="margin-bottom:8px;">Allow microphone access when prompted by your browser</li>
+            <li style="margin-bottom:8px;">Say one of the commands below to control the timer</li>
+            <li style="margin-bottom:0;">The status indicator will show when commands are executed</li>
+          </ol>
+        </div>
+        <div class="infoSection">
+          <strong>Available Commands:</strong>
+          <ul style="margin:8px 0 0 20px; padding:0; list-style:disc;">
+            <li style="margin-bottom:6px;"><strong>"reset"</strong> - Resets the timer to 0:00.0</li>
+            <li style="margin-bottom:6px;"><strong>"stop"</strong> - Pauses the timer (when running)</li>
+            <li style="margin-bottom:6px;"><strong>"start"</strong> or <strong>"resume"</strong> - Resumes the timer (when paused)</li>
+            <li style="margin-bottom:0;"><strong>"settings"</strong> or <strong>"config"</strong> - Opens/closes the settings panel</li>
+          </ul>
+        </div>
+        <div class="infoSection">
+          <strong>Microphone Permissions:</strong>
+          <p style="margin:8px 0 0 0; line-height:1.6;">
+            If microphone access is denied, you'll need to allow it in your browser settings:
+          </p>
+          <ul style="margin:8px 0 0 20px; padding:0; list-style:disc;">
+            <li style="margin-bottom:6px;"><strong>Chrome/Edge:</strong> Click the lock icon in the address bar → Site settings → Microphone → Allow</li>
+            <li style="margin-bottom:6px;"><strong>Safari:</strong> Safari → Settings → Websites → Microphone → Allow for this site</li>
+            <li style="margin-bottom:0;"><strong>Firefox:</strong> Click the lock icon → Permissions → Microphone → Allow</li>
+          </ul>
+        </div>
+        <div class="infoSection">
+          <strong>Browser Support:</strong>
+          <p style="margin:8px 0 0 0; line-height:1.6;">
+            Voice commands work best in Chrome, Edge, and Safari. Firefox has limited support.
+          </p>
+        </div>
+        <button class="infoCloseBtn" type="button">Close</button>
+      </div>
+    </div>
     <div class="label">Count-up timer</div>
     <div class="time" id="time" aria-live="polite">0:00.0</div>
     <p class="hint" id="hint">Configured intervals will flash when reached.</p>
@@ -610,9 +676,7 @@
         const lastResult = event.results[event.results.length - 1];
         const command = lastResult[0].transcript.toLowerCase().trim();
         
-        showVoiceStatus(`Heard: "${command}"`, 'listening');
-        
-        // Map voice commands to functions
+        // Map voice commands to functions - only show status for successful commands
         if (command.includes('reset')) {
           reset();
           showVoiceStatus('Reset executed', 'listening');
@@ -1627,6 +1691,30 @@ Please provide actionable insights and recommendations for improving MCAT questi
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && intervalsInfoPopup.classList.contains("show")) {
         intervalsInfoPopup.classList.remove("show");
+      }
+      if (e.key === "Escape" && voiceCommandsPopup.classList.contains("show")) {
+        voiceCommandsPopup.classList.remove("show");
+      }
+    });
+
+    // Voice Commands Info Button
+    const voiceCommandsInfoBtn = document.getElementById("voiceCommandsInfoBtn");
+    const voiceCommandsPopup = document.getElementById("voiceCommandsPopup");
+    
+    voiceCommandsInfoBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      voiceCommandsPopup.classList.toggle("show");
+    });
+
+    const voiceCommandsCloseBtn = voiceCommandsPopup.querySelector(".infoCloseBtn");
+    voiceCommandsCloseBtn.addEventListener("click", () => {
+      voiceCommandsPopup.classList.remove("show");
+    });
+
+    // Close popup when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!voiceCommandsInfoBtn.contains(e.target) && !voiceCommandsPopup.contains(e.target)) {
+        voiceCommandsPopup.classList.remove("show");
       }
     });
 
