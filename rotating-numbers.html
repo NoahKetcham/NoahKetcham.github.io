@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rotating Numbers</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --text: #e8eef7;
+      --muted: #9fb0c7;
+      --ring: rgba(255,255,255,.12);
+      --btn: #2a364a;
+      --btnText: #fff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(1200px 600px at 50% 20%, #142033 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .wrap {
+      width: min(760px, 92vw);
+      padding: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+      border: 1px solid var(--ring);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      text-align: center;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s ease;
+    }
+    .back-link:hover {
+      color: var(--text);
+    }
+    .label {
+      font-size: 14px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .number-display {
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(48px, 10vw, 96px);
+      font-weight: 800;
+      margin: 20px 0;
+      user-select: none;
+      letter-spacing: 0.08em;
+      min-height: 1.2em;
+      transition: opacity 0.3s ease;
+    }
+    .hint {
+      color: var(--muted);
+      margin: 0 0 24px;
+      font-size: 14px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    button {
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border-radius: 14px;
+      padding: 16px 28px;
+      font-size: clamp(14px, 2.5vw, 18px);
+      background: var(--btn);
+      color: var(--btnText);
+      box-shadow: 0 8px 24px rgba(0,0,0,.3);
+      transition: transform 0.06s ease, background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button:hover {
+      background: #3a4a62;
+    }
+    button:active {
+      transform: translateY(2px) scale(.99);
+    }
+    button:focus-visible {
+      outline: 3px solid rgba(255,255,255,.35);
+      outline-offset: 3px;
+    }
+    .copy-btn.copied {
+      background: #2a5a3a;
+    }
+    .copy-btn.copied:hover {
+      background: #3a7a4a;
+    }
+    .countdown {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap" role="main">
+    <a class="back-link" href="index.html">← Back to Portfolio</a>
+
+    <div class="label">Current Number</div>
+    <div class="number-display" id="numberDisplay" aria-live="polite">—</div>
+    <p class="hint" id="hint">Number changes every 60 seconds</p>
+
+    <div class="actions">
+      <button type="button" class="copy-btn" id="copyBtn" aria-label="Copy number to clipboard">
+        <span aria-hidden="true">📋</span>
+        Copy to Clipboard
+      </button>
+    </div>
+
+    <div class="countdown" id="countdown">Next change in 60s</div>
+  </main>
+
+  <script>
+    // ============================================
+    // HARDCODED NUMBERS - Replace with your list
+    // ============================================
+    const NUMBERS = [
+      "55554",
+      "55553",
+      "63399",
+      "176659",
+      "252402",
+      "86315",
+      "201991",
+      "456785",
+      "277028",
+      "42137",
+      "65373",
+      "513563",
+      "213568",
+      "31677",
+      "187156",
+      "103903",
+      "738378",
+      "318353",
+      "83752",
+      "516278",
+      "727209",
+      "54324",
+      "18420"
+    ];
+
+    const ROTATE_INTERVAL_MS = 60 * 1000; // 60 seconds
+
+    const numberDisplay = document.getElementById("numberDisplay");
+    const copyBtn = document.getElementById("copyBtn");
+    const countdownEl = document.getElementById("countdown");
+    const hintEl = document.getElementById("hint");
+
+    let currentIndex = 0;
+    let countdownInterval = null;
+    let rotateInterval = null;
+
+    function getRandomIndex() {
+      return Math.floor(Math.random() * NUMBERS.length);
+    }
+
+    function pickAndShowNumber() {
+      if (NUMBERS.length === 0) {
+        numberDisplay.textContent = "—";
+        hintEl.textContent = "Add numbers to the NUMBERS array in the HTML.";
+        return;
+      }
+      currentIndex = getRandomIndex();
+      numberDisplay.textContent = NUMBERS[currentIndex];
+    }
+
+    function copyToClipboard() {
+      const text = numberDisplay.textContent;
+      if (text === "—" || !text) return;
+
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.classList.add("copied");
+        copyBtn.textContent = "✓ Copied!";
+        setTimeout(() => {
+          copyBtn.classList.remove("copied");
+          copyBtn.innerHTML = '<span aria-hidden="true">📋</span> Copy to Clipboard';
+        }, 2000);
+      }).catch(() => {
+        copyBtn.textContent = "Copy failed";
+        setTimeout(() => {
+          copyBtn.innerHTML = '<span aria-hidden="true">📋</span> Copy to Clipboard';
+        }, 2000);
+      });
+    }
+
+    function startCountdown() {
+      let secondsLeft = 60;
+      countdownEl.textContent = `Next change in ${secondsLeft}s`;
+
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        secondsLeft--;
+        countdownEl.textContent = `Next change in ${secondsLeft}s`;
+        if (secondsLeft <= 0) {
+          clearInterval(countdownInterval);
+        }
+      }, 1000);
+    }
+
+    function resetCountdown() {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      startCountdown();
+    }
+
+    function init() {
+      pickAndShowNumber();
+      startCountdown();
+
+      rotateInterval = setInterval(() => {
+        pickAndShowNumber();
+        resetCountdown();
+      }, ROTATE_INTERVAL_MS);
+    }
+
+    copyBtn.addEventListener("click", copyToClipboard);
+
+    init();
+  </script>
+</body>
+</html>
