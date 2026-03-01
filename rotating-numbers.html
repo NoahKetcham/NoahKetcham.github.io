@@ -116,7 +116,7 @@
 
     <div class="label">Current Number</div>
     <div class="number-display" id="numberDisplay" aria-live="polite">—</div>
-    <p class="hint" id="hint">Number changes every 60 seconds</p>
+    <p class="hint" id="hint">Number changes every 20 seconds</p>
 
     <div class="actions">
       <button type="button" class="copy-btn" id="copyBtn" aria-label="Copy number to clipboard">
@@ -125,7 +125,7 @@
       </button>
     </div>
 
-    <div class="countdown" id="countdown">Next change in 60s</div>
+    <div class="countdown" id="countdown">Next change in 20s</div>
   </main>
 
   <script>
@@ -159,7 +159,7 @@
       "18420"
     ];
 
-    const ROTATE_INTERVAL_MS = 60 * 1000; // 60 seconds
+    const ROTATE_INTERVAL_MS = 20 * 1000; // 60 seconds
 
     const numberDisplay = document.getElementById("numberDisplay");
     const copyBtn = document.getElementById("copyBtn");
