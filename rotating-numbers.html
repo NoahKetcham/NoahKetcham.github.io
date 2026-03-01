@@ -159,7 +159,7 @@
       "18420"
     ];
 
-    const ROTATE_INTERVAL_MS = 20 * 1000; // 60 seconds
+    const ROTATE_INTERVAL_MS = 20 * 1000; // 20 seconds
 
     const numberDisplay = document.getElementById("numberDisplay");
     const copyBtn = document.getElementById("copyBtn");
@@ -204,7 +204,7 @@
     }
 
     function startCountdown() {
-      let secondsLeft = 60;
+      let secondsLeft = 20;
       countdownEl.textContent = `Next change in ${secondsLeft}s`;
 
       if (countdownInterval) clearInterval(countdownInterval);
